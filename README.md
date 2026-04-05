@@ -16,7 +16,8 @@ BetterDisplayFree enables sharp, Retina-quality text and UI on external monitors
 
 **Result:** Crisp, sharp text instead of blurry scaled resolutions.
 
-![Display Settings showing HiDPI Virtual Display with scaling options](screenshots/display-settings.png)
+<img src="https://github.com/user-attachments/assets/48fe436d-cc19-457b-b1cb-ff4cc59dab9a" width="500" />
+
 *System Settings → Displays showing the virtual display with HiDPI scaling options*
 
 ## Features
