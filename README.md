@@ -16,6 +16,9 @@ BetterDisplayFree enables sharp, Retina-quality text and UI on external monitors
 
 **Result:** Crisp, sharp text instead of blurry scaled resolutions.
 
+![Display Settings showing HiDPI Virtual Display with scaling options](screenshots/display-settings.png)
+*System Settings → Displays showing the virtual display with HiDPI scaling options*
+
 ## Features
 
 - **One-click HiDPI toggle** for external monitors
@@ -30,17 +33,57 @@ BetterDisplayFree enables sharp, Retina-quality text and UI on external monitors
 - macOS 14 (Sonoma) or later
 - Apple Silicon or Intel Mac
 - External monitor connected
-- Swift 5.9+ toolchain (for building)
 
 ## Installation
-
-### Download (Recommended)
 
 1. Download the latest `BetterDisplayFree-x.x.x.dmg` from [Releases](https://github.com/amitpdev/BetterDisplayFree/releases)
 2. Open the DMG and drag `BetterDisplayFree.app` to your Applications folder
 3. Launch from Applications (you may need to right-click → Open the first time)
 
-### Build from Source
+## Usage
+
+1. Launch the app - a display icon appears in your menu bar
+2. Click the icon to see connected external monitors
+3. Click on a monitor name to enable HiDPI (checkmark appears)
+4. Click again to disable HiDPI
+5. Adjust resolution in **System Settings → Displays** using the "Larger Text" to "More Space" slider
+
+## Troubleshooting
+
+**HiDPI option doesn't appear in System Settings:**
+- Make sure you click on the "HiDPI Virtual Display" in System Settings → Displays
+- Try the "Larger Text" to "More Space" slider
+
+**Monitor flickers when enabling:**
+- This is normal during display reconfiguration
+- Should stabilize within 1-2 seconds
+
+**App doesn't detect my monitor:**
+- Click "Refresh Displays" in the menu
+- Ensure the monitor is connected and recognized by macOS
+
+## Limitations
+
+- **Process must stay running** - The virtual display is owned by the app. If you quit, HiDPI is disabled.
+- **Extra display visible** - System Settings shows the virtual display alongside your physical monitor.
+- **Private API** - Uses undocumented Apple APIs that could break in future macOS versions (though stable since macOS 14).
+- **GPU overhead** - Rendering at 2x resolution uses more GPU power.
+
+## Credits
+
+Written by **Amit Palomo**
+
+Inspired by [BetterDisplay](https://betterdisplay.pro) - a more feature-rich commercial alternative.
+
+## License
+
+MIT License - Copyright (c) 2026 Amit Palomo
+
+---
+
+# For Developers
+
+## Building from Source
 
 ```bash
 git clone https://github.com/amitpdev/BetterDisplayFree.git
@@ -50,19 +93,11 @@ swift build -c release
 
 The binary will be at `.build/release/BetterDisplayFree`.
 
-To create a DMG installer:
+### Creating a DMG Installer
 
 ```bash
 ./scripts/create-dmg.sh 1.0.0
 ```
-
-## Usage
-
-1. Launch the app - a display icon appears in your menu bar
-2. Click the icon to see connected external monitors
-3. Click on a monitor name to enable HiDPI (checkmark appears)
-4. Click again to disable HiDPI
-5. Adjust resolution in **System Settings → Displays** using the "Larger Text" to "More Space" slider
 
 ## How It Works
 
@@ -87,13 +122,6 @@ For a 2560×1440 monitor, the app creates these "looks like" resolutions:
 - 1280×720 (HiDPI) - renders at 2560×1440
 - And more...
 
-## Limitations
-
-- **Process must stay running** - The virtual display is owned by the app. If you quit, HiDPI is disabled.
-- **Extra display visible** - System Settings shows the virtual display alongside your physical monitor.
-- **Private API** - Uses undocumented Apple APIs that could break in future macOS versions (though stable since macOS 14).
-- **GPU overhead** - Rendering at 2x resolution uses more GPU power.
-
 ## Logging
 
 BetterDisplayFree uses Apple's unified logging system (`os.log`). View logs with:
@@ -108,32 +136,6 @@ Log categories:
 - `Monitor` - Monitor detection and enumeration
 - `App` - Application lifecycle
 
-## Troubleshooting
-
-**HiDPI option doesn't appear in System Settings:**
-- Make sure you click on the "HiDPI Virtual Display" in System Settings → Displays
-- Try the "Larger Text" to "More Space" slider
-
-**Monitor flickers when enabling:**
-- This is normal during display reconfiguration
-- Should stabilize within 1-2 seconds
-
-**App doesn't detect my monitor:**
-- Click "Refresh Displays" in the menu
-- Ensure the monitor is connected and recognized by macOS
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
-
-## Credits
-
-Written by **Amit Palomo**
-
-Inspired by [BetterDisplay](https://betterdisplay.pro) - a more feature-rich commercial alternative.
-
-## License
-
-MIT License
-
-Copyright (c) 2026 Amit Palomo

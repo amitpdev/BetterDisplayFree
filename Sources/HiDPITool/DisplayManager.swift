@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import AppKit
 
 final class DisplayManager: ObservableObject {
     static let shared = DisplayManager()
@@ -13,7 +14,79 @@ final class DisplayManager: ObservableObject {
         let virtualDisplayID: CGDirectDisplayID
     }
     
-    private init() {}
+    private init() {
+        setupDisplayReconfigurationCallback()
+        setupSleepWakeNotifications()
+    }
+    
+    private func setupSleepWakeNotifications() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleSystemWake()
+        }
+    }
+    
+    private func handleSystemWake() {
+        Log.display.info("System woke up, checking display connections...")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.cleanupDisconnectedDisplays()
+        }
+    }
+    
+    private func cleanupDisconnectedDisplays() {
+        var displayCount: UInt32 = 0
+        CGGetOnlineDisplayList(0, nil, &displayCount)
+        
+        var onlineDisplays = [CGDirectDisplayID](repeating: 0, count: Int(displayCount))
+        CGGetOnlineDisplayList(displayCount, &onlineDisplays, &displayCount)
+        let onlineSet = Set(onlineDisplays)
+        
+        let orphanedPhysicalIDs = virtualDisplays.keys.filter { !onlineSet.contains($0) }
+        
+        for physicalID in orphanedPhysicalIDs {
+            Log.display.info("Physical display \(physicalID) no longer connected after wake, cleaning up")
+            virtualDisplays.removeValue(forKey: physicalID)
+        }
+        
+        let orphanedVirtualIDs = recentVirtualDisplayIDs.filter { !onlineSet.contains($0) }
+        for virtualID in orphanedVirtualIDs {
+            Log.display.debug("Virtual display \(virtualID) no longer exists, removing from tracking")
+            recentVirtualDisplayIDs.remove(virtualID)
+        }
+        
+        if !orphanedPhysicalIDs.isEmpty || !orphanedVirtualIDs.isEmpty {
+            Log.display.info("Cleanup complete: removed \(orphanedPhysicalIDs.count) orphaned HiDPI configs")
+        }
+    }
+    
+    private func setupDisplayReconfigurationCallback() {
+        CGDisplayRegisterReconfigurationCallback({ displayID, flags, userInfo in
+            guard let userInfo = userInfo else { return }
+            let manager = Unmanaged<DisplayManager>.fromOpaque(userInfo).takeUnretainedValue()
+            
+            if flags.contains(.removeFlag) {
+                DispatchQueue.main.async {
+                    manager.handleDisplayRemoved(displayID)
+                }
+            }
+        }, Unmanaged.passUnretained(self).toOpaque())
+    }
+    
+    private func handleDisplayRemoved(_ displayID: CGDirectDisplayID) {
+        if virtualDisplays[displayID] != nil {
+            Log.display.info("Physical display \(displayID) was disconnected, cleaning up HiDPI")
+            virtualDisplays.removeValue(forKey: displayID)
+        }
+        
+        if recentVirtualDisplayIDs.contains(displayID) {
+            Log.display.info("Virtual display \(displayID) was removed, cleaning up tracking")
+            recentVirtualDisplayIDs.remove(displayID)
+        }
+    }
     
     func enableHiDPI(for physicalDisplayID: CGDirectDisplayID) -> Bool {
         if virtualDisplays[physicalDisplayID] != nil {

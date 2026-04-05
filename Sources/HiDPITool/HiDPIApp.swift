@@ -2,6 +2,24 @@ import SwiftUI
 import AppKit
 import ServiceManagement
 
+enum AppVersion {
+    static let current: String = {
+        let bundle = Bundle.main
+        if let version = bundle.infoDictionary?["CFBundleShortVersionString"] as? String {
+            return version
+        }
+        if let versionFileURL = bundle.url(forResource: "VERSION", withExtension: nil),
+           let version = try? String(contentsOf: versionFileURL, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) {
+            return version
+        }
+        #if DEBUG
+        return "dev"
+        #else
+        return "1.0.0"
+        #endif
+    }()
+}
+
 @main
 struct BetterDisplayFreeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -223,6 +241,7 @@ enum AboutWindow {
 
 struct AboutView: View {
     private let repoURL = "https://github.com/amitpdev/BetterDisplayFree"
+    private let version = AppVersion.current
     
     var body: some View {
         VStack(spacing: 16) {
@@ -234,7 +253,7 @@ struct AboutView: View {
                 .font(.title)
                 .fontWeight(.semibold)
             
-            Text("Version 1.0")
+            Text("Version \(version)")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             

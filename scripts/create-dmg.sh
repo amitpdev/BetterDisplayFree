@@ -2,11 +2,10 @@
 set -e
 
 APP_NAME="BetterDisplayFree"
-VERSION="${1:-1.0.0}"
-DMG_NAME="${APP_NAME}-${VERSION}"
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+VERSION="${1:-$(cat "$PROJECT_DIR/VERSION" | tr -d '\n')}"
+DMG_NAME="${APP_NAME}-${VERSION}"
 BUILD_DIR="${PROJECT_DIR}/.build/release"
 DIST_DIR="${PROJECT_DIR}/dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
@@ -21,6 +20,7 @@ mkdir -p "${APP_BUNDLE}/Contents/MacOS"
 mkdir -p "${APP_BUNDLE}/Contents/Resources"
 
 cp "${BUILD_DIR}/${APP_NAME}" "${APP_BUNDLE}/Contents/MacOS/"
+cp "${PROJECT_DIR}/VERSION" "${APP_BUNDLE}/Contents/Resources/"
 
 cat > "${APP_BUNDLE}/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
