@@ -71,6 +71,9 @@ struct MenuBarView: View {
                 .onChange(of: launchAtLogin) { _, newValue in
                     LaunchAtLoginManager.isEnabled = newValue
                 }
+                .onAppear {
+                    launchAtLogin = LaunchAtLoginManager.isEnabled
+                }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 2)
             
@@ -81,7 +84,7 @@ struct MenuBarView: View {
             }
             
             Button("Quit") {
-                displayManager.cleanup()
+                // cleanup() is called by applicationWillTerminate — no need to duplicate it here.
                 NSApplication.shared.terminate(nil)
             }
             .keyboardShortcut("q", modifiers: .command)
@@ -135,24 +138,21 @@ struct MonitorToggleView: View {
     private func toggleHiDPI() {
         isProcessing = true
         let shouldEnable = !isEnabled
-        
+
         Log.ui.info("toggleHiDPI for '\(monitor.name)' (ID: \(monitor.displayID)) - shouldEnable=\(shouldEnable)")
-        
-        DispatchQueue.global(qos: .userInitiated).async {
+
+        Task { @MainActor in
             let success: Bool
             if shouldEnable {
-                success = displayManager.enableHiDPI(for: monitor.displayID)
+                success = await displayManager.enableHiDPI(for: monitor.displayID)
             } else {
                 success = displayManager.disableHiDPI(for: monitor.displayID)
             }
-            
-            DispatchQueue.main.async {
-                isProcessing = false
-                if success {
-                    Log.ui.info("toggleHiDPI completed successfully")
-                } else {
-                    Log.ui.error("Failed to \(shouldEnable ? "enable" : "disable") HiDPI")
-                }
+            isProcessing = false
+            if success {
+                Log.ui.info("toggleHiDPI completed successfully")
+            } else {
+                Log.ui.error("Failed to \(shouldEnable ? "enable" : "disable") HiDPI")
             }
         }
     }
@@ -173,8 +173,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             signal(sig, SIG_IGN)
             let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
             source.setEventHandler {
-                DisplayManager.shared.cleanup()
-                exit(0)
+                Task { @MainActor in
+                    DisplayManager.shared.cleanup()
+                    exit(0)
+                }
             }
             source.resume()
             signalSources.append(source)
@@ -182,7 +184,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
-        DisplayManager.shared.cleanup()
+        // Called on the main thread; MainActor.assumeIsolated is safe here.
+        MainActor.assumeIsolated {
+            DisplayManager.shared.cleanup()
+        }
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

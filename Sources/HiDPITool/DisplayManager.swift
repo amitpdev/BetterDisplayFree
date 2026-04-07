@@ -2,6 +2,7 @@ import Foundation
 import CoreGraphics
 import AppKit
 
+@MainActor
 final class DisplayManager: ObservableObject {
     static let shared = DisplayManager()
     
@@ -25,14 +26,16 @@ final class DisplayManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleSystemWake()
+            Task { @MainActor [weak self] in
+                self?.handleSystemWake()
+            }
         }
     }
-    
+
     private func handleSystemWake() {
         Log.display.info("System woke up, checking display connections...")
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
             self?.cleanupDisconnectedDisplays()
         }
     }
@@ -40,10 +43,12 @@ final class DisplayManager: ObservableObject {
     private func cleanupDisconnectedDisplays() {
         var displayCount: UInt32 = 0
         CGGetOnlineDisplayList(0, nil, &displayCount)
-        
+
         var onlineDisplays = [CGDirectDisplayID](repeating: 0, count: Int(displayCount))
         CGGetOnlineDisplayList(displayCount, &onlineDisplays, &displayCount)
-        let onlineSet = Set(onlineDisplays)
+        // Use the count from the second call to avoid trailing kCGNullDirectDisplay zeros
+        // if a display was removed between the two calls.
+        let onlineSet = Set(onlineDisplays.prefix(Int(displayCount)))
         
         let orphanedPhysicalIDs = virtualDisplays.keys.filter { !onlineSet.contains($0) }
         
@@ -67,9 +72,9 @@ final class DisplayManager: ObservableObject {
         CGDisplayRegisterReconfigurationCallback({ displayID, flags, userInfo in
             guard let userInfo = userInfo else { return }
             let manager = Unmanaged<DisplayManager>.fromOpaque(userInfo).takeUnretainedValue()
-            
+
             if flags.contains(.removeFlag) {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     manager.handleDisplayRemoved(displayID)
                 }
             }
@@ -88,15 +93,15 @@ final class DisplayManager: ObservableObject {
         }
     }
     
-    func enableHiDPI(for physicalDisplayID: CGDirectDisplayID) -> Bool {
+    func enableHiDPI(for physicalDisplayID: CGDirectDisplayID) async -> Bool {
         if virtualDisplays[physicalDisplayID] != nil {
             Log.display.info("HiDPI already enabled for display \(physicalDisplayID)")
             return true
         }
-        
+
         if CGDisplayIsInMirrorSet(physicalDisplayID) != 0 {
-            Log.display.info("Display \(physicalDisplayID) is already in a mirror set")
-            return true
+            Log.display.error("Display \(physicalDisplayID) is already in a mirror set not owned by this app; cannot enable HiDPI")
+            return false
         }
         
         guard let mode = CGDisplayCopyDisplayMode(physicalDisplayID) else {
@@ -150,7 +155,8 @@ final class DisplayManager: ObservableObject {
         recentVirtualDisplayIDs.insert(virtualDisplayID)
         Log.display.debug("Registered virtual display in tracking dictionary")
         
-        usleep(200_000)
+        // Non-blocking wait for the virtual display to become available in the system display list.
+        try? await Task.sleep(nanoseconds: 200_000_000)
         
         if !configureMirroring(physicalDisplayID: physicalDisplayID, virtualDisplayID: virtualDisplayID) {
             Log.display.error("Failed to configure mirroring")
@@ -214,7 +220,7 @@ final class DisplayManager: ObservableObject {
     }
     
     func disableHiDPI(for physicalDisplayID: CGDirectDisplayID) -> Bool {
-        guard let info = virtualDisplays[physicalDisplayID] else {
+        guard virtualDisplays[physicalDisplayID] != nil else {
             return true
         }
         
@@ -232,9 +238,10 @@ final class DisplayManager: ObservableObject {
             return false
         }
         
+        // removeValue releases VirtualDisplayInfo (and its CGVirtualDisplay),
+        // which happens after CGCompleteDisplayConfiguration above — correct ordering.
         virtualDisplays.removeValue(forKey: physicalDisplayID)
-        _ = info.virtualDisplay
-        
+
         Log.display.info("HiDPI disabled for display \(physicalDisplayID)")
         return true
     }
@@ -263,7 +270,8 @@ final class DisplayManager: ObservableObject {
             return false
         }
         
-        if originalMain != virtualDisplayID && CGMainDisplayID() == virtualDisplayID {
+        // Ensure the original main display keeps its origin if mirroring displaced it.
+        if originalMain != virtualDisplayID {
             CGConfigureDisplayOrigin(config, originalMain, 0, 0)
         }
         

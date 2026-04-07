@@ -15,6 +15,7 @@ struct ExternalMonitor: Identifiable, Equatable {
     }
 }
 
+@MainActor
 final class MonitorDetector: ObservableObject {
     static let shared = MonitorDetector()
     
@@ -38,7 +39,10 @@ final class MonitorDetector: ObservableObject {
         
         var displays = [CGDirectDisplayID](repeating: 0, count: Int(displayCount))
         CGGetOnlineDisplayList(displayCount, &displays, &displayCount)
-        
+        // Use the count from the second call to avoid trailing kCGNullDirectDisplay zeros
+        // if a display was removed between the two CGGetOnlineDisplayList calls.
+        let validDisplays = displays.prefix(Int(displayCount))
+
         var monitors: [ExternalMonitor] = []
         var external: [ExternalMonitor] = []
         
@@ -49,7 +53,7 @@ final class MonitorDetector: ObservableObject {
         Log.monitor.debug("virtualDisplayIDs: \(virtualDisplayIDs)")
         Log.monitor.debug("physicalDisplayIDs (with HiDPI): \(physicalDisplayIDs)")
         
-        for displayID in displays {
+        for displayID in validDisplays {
             let isInMirrorSet = CGDisplayIsInMirrorSet(displayID) != 0
             let mirrorsDisplay = CGDisplayMirrorsDisplay(displayID)
             let isBuiltIn = CGDisplayIsBuiltin(displayID) != 0
@@ -90,11 +94,9 @@ final class MonitorDetector: ObservableObject {
         }
         
         Log.monitor.info("Detected \(external.count) external monitor(s)")
-        
-        DispatchQueue.main.async {
-            self.allMonitors = monitors
-            self.externalMonitors = external
-        }
+
+        allMonitors = monitors
+        externalMonitors = external
     }
     
     private func getDisplayName(for displayID: CGDirectDisplayID) -> String? {
@@ -135,16 +137,15 @@ final class MonitorDetector: ObservableObject {
         CGDisplayRegisterReconfigurationCallback({ displayID, flags, userInfo in
             guard let userInfo = userInfo else { return }
             let detector = Unmanaged<MonitorDetector>.fromOpaque(userInfo).takeUnretainedValue()
-            
+
             if flags.contains(.addFlag) || flags.contains(.removeFlag) || flags.contains(.setMainFlag) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 500_000_000)
                     detector.refresh()
                 }
             }
         }, Unmanaged.passUnretained(self).toOpaque())
-    }
-    
-    deinit {
-        CGDisplayRemoveReconfigurationCallback({ _, _, _ in }, nil)
+        // Note: MonitorDetector is a singleton (static let shared) that lives for the
+        // entire app lifetime, so there is no need to unregister this callback.
     }
 }
