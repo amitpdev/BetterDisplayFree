@@ -8,13 +8,13 @@ A minimal, free, and open-source macOS menu bar app that enables HiDPI (Retina) 
 
 ## What It Does
 
-BetterDisplayFree enables sharp, Retina-quality text and UI on external monitors that macOS doesn't natively support with HiDPI scaling. It works by:
+BetterDisplayFree enables sharp, Retina-quality text and UI on external monitors that macOS doesn't natively offer HiDPI scaling for. It works by:
 
 1. Creating a virtual display with 2x pixel backing (HiDPI enabled)
 2. Mirroring your physical external monitor to this virtual display
 3. macOS renders at 2x resolution internally, then downscales to your monitor's native resolution
 
-**Result:** Crisp, sharp text instead of blurry scaled resolutions.
+**Result:** Crisp, sharp text instead of blurry non-HiDPI output.
 
 <img src="https://github.com/user-attachments/assets/48fe436d-cc19-457b-b1cb-ff4cc59dab9a" width="500" />
 
@@ -47,7 +47,7 @@ BetterDisplayFree enables sharp, Retina-quality text and UI on external monitors
 2. Click the icon to see connected external monitors
 3. Click on a monitor name to enable HiDPI (checkmark appears)
 4. Click again to disable HiDPI
-5. Adjust resolution in **System Settings → Displays** using the "Larger Text" to "More Space" slider
+5. Adjust scaling in **System Settings → Displays** using the *Larger Text* to *More Space* slider
 
 ## Troubleshooting
 
@@ -82,7 +82,7 @@ MIT License - Copyright (c) 2026 Amit Palomo
 
 ---
 
-# For Developers
+## For Developers
 
 ## Building from Source
 
