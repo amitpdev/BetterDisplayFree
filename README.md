@@ -3,7 +3,7 @@
 A minimal, free, and open-source macOS menu bar app that enables HiDPI (Retina) scaling on external monitors.
 
 ![macOS](https://img.shields.io/badge/macOS-14%2B-blue)
-![Swift](https://img.shields.io/badge/Swift-5.9-orange)
+![Swift](https://img.shields.io/badge/Swift-5-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ## What It Does
@@ -91,19 +91,9 @@ MIT License - Copyright (c) 2026 Amit Palomo
 
 ## Building from Source
 
-```bash
-git clone https://github.com/amitpdev/BetterDisplayFree.git
-cd BetterDisplayFree
-swift build -c release
-```
-
-The binary will be at `.build/release/BetterDisplayFree`.
-
-### Creating a DMG Installer
-
-```bash
-./scripts/create-dmg.sh 1.0.0
-```
+Open `BetterDisplayFree/BetterDisplayFree.xcodeproj` in Xcode, select the
+`BetterDisplayFree` scheme, then use **Product → Archive** for distribution and
+notarization.
 
 ## How It Works
 

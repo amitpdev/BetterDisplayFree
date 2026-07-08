@@ -1,6 +1,4 @@
 # Build artifacts
-.build/
-dist/
 DerivedData/
 
 # Xcode
@@ -8,13 +6,14 @@ DerivedData/
 *.xcworkspace
 xcuserdata/
 *.xcuserstate
+*.xcarchive
+!BetterDisplayFree/BetterDisplayFree.xcodeproj/
+!BetterDisplayFree/BetterDisplayFree.xcodeproj/**
+BetterDisplayFree/BetterDisplayFree.xcodeproj/xcuserdata/
+BetterDisplayFree/BetterDisplayFree.xcodeproj/project.xcworkspace/xcuserdata/
 
 # VSCode
 .vscode/
-
-# Swift Package Manager
-.swiftpm/
-Package.resolved
 
 # macOS
 .DS_Store

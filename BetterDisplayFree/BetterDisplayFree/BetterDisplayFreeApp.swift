@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import ServiceManagement
+import os
 
 enum AppVersion {
     static let current: String = {
@@ -8,14 +9,10 @@ enum AppVersion {
         if let version = bundle.infoDictionary?["CFBundleShortVersionString"] as? String {
             return version
         }
-        if let versionFileURL = bundle.url(forResource: "VERSION", withExtension: nil),
-           let version = try? String(contentsOf: versionFileURL, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) {
-            return version
-        }
         #if DEBUG
         return "dev"
         #else
-        return "1.0.0"
+        return "unknown"
         #endif
     }()
 }

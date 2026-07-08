@@ -1,6 +1,8 @@
 import Foundation
 import CoreGraphics
 import AppKit
+import Combine
+import os
 
 @MainActor
 final class DisplayManager: ObservableObject {

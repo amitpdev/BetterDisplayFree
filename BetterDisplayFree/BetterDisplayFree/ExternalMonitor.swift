@@ -1,6 +1,8 @@
 import Foundation
 import CoreGraphics
 import AppKit
+import Combine
+import os
 
 struct ExternalMonitor: Identifiable, Equatable {
     let id: CGDirectDisplayID

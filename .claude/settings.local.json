@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(swift build:*)",
+      "Bash(log show:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(/Users/amitp/projects/betterdisplay/dist/BetterDisplayFree.app/Contents/MacOS/BetterDisplayFree)",
+      "Bash(kill -9 49082 49306 49313)"
+    ]
+  }
+}
