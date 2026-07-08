@@ -21,6 +21,7 @@ final class MonitorDetector: ObservableObject {
     
     @Published private(set) var externalMonitors: [ExternalMonitor] = []
     @Published private(set) var allMonitors: [ExternalMonitor] = []
+    private var displayNameCache: [CGDirectDisplayID: String] = [:]
     
     private init() {
         refresh()
@@ -34,6 +35,7 @@ final class MonitorDetector: ObservableObject {
         guard displayCount > 0 else {
             externalMonitors = []
             allMonitors = []
+            displayNameCache.removeAll()
             return
         }
         
@@ -42,6 +44,8 @@ final class MonitorDetector: ObservableObject {
         // Use the count from the second call to avoid trailing kCGNullDirectDisplay zeros
         // if a display was removed between the two CGGetOnlineDisplayList calls.
         let validDisplays = displays.prefix(Int(displayCount))
+        let validDisplaySet = Set(validDisplays)
+        displayNameCache = displayNameCache.filter { validDisplaySet.contains($0.key) }
 
         var monitors: [ExternalMonitor] = []
         var external: [ExternalMonitor] = []
@@ -103,8 +107,13 @@ final class MonitorDetector: ObservableObject {
         for screen in NSScreen.screens {
             if let screenNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID,
                screenNumber == displayID {
+                displayNameCache[displayID] = screen.localizedName
                 return screen.localizedName
             }
+        }
+
+        if let cachedName = displayNameCache[displayID] {
+            return cachedName
         }
         
         let vendorID = CGDisplayVendorNumber(displayID)

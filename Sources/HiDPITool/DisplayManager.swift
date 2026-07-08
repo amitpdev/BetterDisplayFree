@@ -121,8 +121,8 @@ final class DisplayManager: ObservableObject {
         descriptor.maxPixelsHigh = UInt32(nativeHeight * 2)
         descriptor.sizeInMillimeters = screenSize
         descriptor.vendorID = CGDisplayVendorNumber(physicalDisplayID)
-        descriptor.productID = CGDisplayModelNumber(physicalDisplayID) + 0x1000
-        descriptor.serialNum = CGDisplaySerialNumber(physicalDisplayID) + 1
+        descriptor.productID = offsetDisplayIdentifier(CGDisplayModelNumber(physicalDisplayID), by: 0x1000)
+        descriptor.serialNum = offsetDisplayIdentifier(CGDisplaySerialNumber(physicalDisplayID), by: 1)
         
         let virtualDisplay = CGVirtualDisplay(descriptor: descriptor)
         
@@ -139,7 +139,7 @@ final class DisplayManager: ObservableObject {
         Log.display.info("Created \(modes.count) HiDPI modes for \(nativeWidth)×\(nativeHeight) display")
         
         guard virtualDisplay.apply(settings) else {
-            Log.display.error("Failed to apply virtual display settings")
+            Log.display.error("Failed to apply virtual display settings for display \(physicalDisplayID)")
             return false
         }
         
@@ -161,6 +161,7 @@ final class DisplayManager: ObservableObject {
         if !configureMirroring(physicalDisplayID: physicalDisplayID, virtualDisplayID: virtualDisplayID) {
             Log.display.error("Failed to configure mirroring")
             virtualDisplays.removeValue(forKey: physicalDisplayID)
+            recentVirtualDisplayIDs.remove(virtualDisplayID)
             return false
         }
         
@@ -220,20 +221,27 @@ final class DisplayManager: ObservableObject {
     }
     
     func disableHiDPI(for physicalDisplayID: CGDirectDisplayID) -> Bool {
-        guard virtualDisplays[physicalDisplayID] != nil else {
+        guard let info = virtualDisplays[physicalDisplayID] else {
             return true
         }
         
         var config: CGDisplayConfigRef?
-        guard CGBeginDisplayConfiguration(&config) == .success else {
-            Log.display.error("Failed to begin display configuration")
+        let beginError = CGBeginDisplayConfiguration(&config)
+        guard beginError == .success else {
+            Log.display.error("Failed to begin display configuration: \(beginError.rawValue)")
             return false
         }
         
-        CGConfigureDisplayMirrorOfDisplay(config, physicalDisplayID, kCGNullDirectDisplay)
+        let unmirrorError = CGConfigureDisplayMirrorOfDisplay(config, physicalDisplayID, kCGNullDirectDisplay)
+        if unmirrorError != .success {
+            Log.display.error("Failed to unmirror display \(physicalDisplayID): \(unmirrorError.rawValue)")
+            CGCancelDisplayConfiguration(config)
+            return false
+        }
         
-        guard CGCompleteDisplayConfiguration(config, .forAppOnly) == .success else {
-            Log.display.error("Failed to complete display configuration")
+        let completeError = CGCompleteDisplayConfiguration(config, .forAppOnly)
+        guard completeError == .success else {
+            Log.display.error("Failed to complete display configuration: \(completeError.rawValue)")
             CGCancelDisplayConfiguration(config)
             return false
         }
@@ -241,6 +249,7 @@ final class DisplayManager: ObservableObject {
         // removeValue releases VirtualDisplayInfo (and its CGVirtualDisplay),
         // which happens after CGCompleteDisplayConfiguration above — correct ordering.
         virtualDisplays.removeValue(forKey: physicalDisplayID)
+        recentVirtualDisplayIDs.remove(info.virtualDisplayID)
 
         Log.display.info("HiDPI disabled for display \(physicalDisplayID)")
         return true
@@ -252,31 +261,45 @@ final class DisplayManager: ObservableObject {
     
     private func configureMirroring(physicalDisplayID: CGDirectDisplayID, virtualDisplayID: CGDirectDisplayID) -> Bool {
         var config: CGDisplayConfigRef?
-        guard CGBeginDisplayConfiguration(&config) == .success else {
-            Log.display.error("Failed to begin display configuration")
+        let beginError = CGBeginDisplayConfiguration(&config)
+        guard beginError == .success else {
+            Log.display.error("Failed to begin display configuration: \(beginError.rawValue)")
             return false
         }
         
         let originalMain = CGMainDisplayID()
         
         if CGDisplayMirrorsDisplay(originalMain) == virtualDisplayID {
-            CGConfigureDisplayMirrorOfDisplay(config, originalMain, kCGNullDirectDisplay)
+            let error = CGConfigureDisplayMirrorOfDisplay(config, originalMain, kCGNullDirectDisplay)
+            if error != .success {
+                Log.display.error("Failed to unmirror original main display \(originalMain): \(error.rawValue)")
+                CGCancelDisplayConfiguration(config)
+                return false
+            }
         }
         
         let error = CGConfigureDisplayMirrorOfDisplay(config, physicalDisplayID, virtualDisplayID)
         if error != .success {
-            Log.display.error("Failed to configure mirror: \(error.rawValue)")
+            Log.display.error("Failed to configure mirror physical \(physicalDisplayID) -> virtual \(virtualDisplayID): \(error.rawValue)")
             CGCancelDisplayConfiguration(config)
             return false
         }
         
-        // Ensure the original main display keeps its origin if mirroring displaced it.
-        if originalMain != virtualDisplayID {
-            CGConfigureDisplayOrigin(config, originalMain, 0, 0)
+        // Keep a separate original main display anchored. If the selected physical
+        // display is the main display, it is now becoming a mirror and must not
+        // also receive an origin change in the same configuration transaction.
+        if originalMain != physicalDisplayID && originalMain != virtualDisplayID {
+            let originError = CGConfigureDisplayOrigin(config, originalMain, 0, 0)
+            if originError != .success {
+                Log.display.error("Failed to restore original main display origin for \(originalMain): \(originError.rawValue)")
+                CGCancelDisplayConfiguration(config)
+                return false
+            }
         }
         
-        guard CGCompleteDisplayConfiguration(config, .forAppOnly) == .success else {
-            Log.display.error("Failed to complete mirror configuration")
+        let completeError = CGCompleteDisplayConfiguration(config, .forAppOnly)
+        guard completeError == .success else {
+            Log.display.error("Failed to complete mirror configuration for physical \(physicalDisplayID) and virtual \(virtualDisplayID): \(completeError.rawValue)")
             CGCancelDisplayConfiguration(config)
             return false
         }
@@ -284,9 +307,14 @@ final class DisplayManager: ObservableObject {
         Log.display.info("Mirroring configured: physical \(physicalDisplayID) mirrors virtual \(virtualDisplayID)")
         return true
     }
-    
+
+    private func offsetDisplayIdentifier(_ value: UInt32, by offset: UInt32) -> UInt32 {
+        let (result, overflow) = value.addingReportingOverflow(offset)
+        return overflow ? value : result
+    }
+
     func cleanup() {
-        for (displayID, _) in virtualDisplays {
+        for displayID in Array(virtualDisplays.keys) {
             _ = disableHiDPI(for: displayID)
         }
     }

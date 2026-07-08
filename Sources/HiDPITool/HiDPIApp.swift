@@ -139,7 +139,7 @@ struct MonitorToggleView: View {
         isProcessing = true
         let shouldEnable = !isEnabled
 
-        Log.ui.info("toggleHiDPI for '\(monitor.name)' (ID: \(monitor.displayID)) - shouldEnable=\(shouldEnable)")
+        Log.ui.info("toggleHiDPI for '\(monitor.name)' (ID: \(monitor.displayID), resolution: '\(monitor.resolution)', isBuiltIn: \(monitor.isBuiltIn), currentlyEnabled: \(isEnabled)) - shouldEnable=\(shouldEnable)")
 
         Task { @MainActor in
             let success: Bool
@@ -150,9 +150,9 @@ struct MonitorToggleView: View {
             }
             isProcessing = false
             if success {
-                Log.ui.info("toggleHiDPI completed successfully")
+                Log.ui.info("toggleHiDPI completed successfully for '\(monitor.name)' (ID: \(monitor.displayID)); nowEnabled=\(displayManager.isHiDPIEnabled(for: monitor.displayID))")
             } else {
-                Log.ui.error("Failed to \(shouldEnable ? "enable" : "disable") HiDPI")
+                Log.ui.error("Failed to \(shouldEnable ? "enable" : "disable") HiDPI for '\(monitor.name)' (ID: \(monitor.displayID)); nowEnabled=\(displayManager.isHiDPIEnabled(for: monitor.displayID))")
             }
         }
     }
