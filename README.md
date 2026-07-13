@@ -42,9 +42,11 @@ BetterDisplayFree enables sharp, Retina-quality text and UI on external monitors
 
 ## Installation
 
-1. Download the latest `BetterDisplayFree-x.x.x.dmg` from [Releases](https://github.com/amitpdev/BetterDisplayFree/releases)
+The downloadable macOS app is signed and notarized by Apple.
+
+1. Download the latest DMG from [BetterDisplayFree 1.0.3](https://github.com/amitpdev/BetterDisplayFree/releases/tag/1.0.3)
 2. Open the DMG and drag `BetterDisplayFree.app` to your Applications folder
-3. Launch from Applications (you may need to right-click → Open the first time)
+3. Launch from Applications
 
 ## Usage
 
